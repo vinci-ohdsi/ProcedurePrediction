@@ -1,0 +1,87 @@
+# ProcedurePrediction
+
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of ProcedurePrediction is to predict events in a fixed cohort
+interval
+
+## Installation
+
+You can install the development version of ProcedurePrediction like so:
+
+``` r
+remotes::install_github("vinci-ohdsi/ProcedurePrediction")
+```
+
+# Example use
+
+``` r
+devtools::load_all()
+
+connectionDetails <- DatabaseConnector::createConnectionDetails(
+    dbms = 'sql server',
+    server = Sys.getenv('MY_RESEARCH_SERVER')
+)
+
+covariateSettings <- createCovariateSettings(
+  useDemographicsAgeGroup = TRUE,
+  useDemographicsGender = TRUE,
+  useConditionOccurrenceAnyTimePrior = TRUE,
+  useDrugEraAnyTimePrior = TRUE,
+  useProcedureOccurrenceAnyTimePrior = TRUE,
+  endDays = -1
+)
+
+state <- createInitialState(
+    connectionDetails = connectionDetails,
+    cdmSchema = Sys.getenv('MY_RESEARCH_CDM'),
+    outputSchema = Sys.getenv('OUTPUT_SCHEMA'),
+    procedureStandardConcepts = NULL,
+    procedureSourceConcepts = c(2313975, 2313976),
+    predictionInterval = c('2018-01-01', '2018-12-31'),
+    continuousObservationInterval = c('2017-01-01', '2017-12-31'),
+    controlToCaseRatio = 10,
+    covariateSettings = covariateSettings,
+    andromedaFolder = "./",
+    trainProportion = 0.8
+)
+
+state <- with(
+  list(fns = list(state,
+                  createPopulation,
+                  createLabels,
+                  createSample,
+                  createFeatures,
+                  trainTestSplit,
+                  trainModel,
+                  predictOnTestSet,
+                  createTestDiagnostics)),
+  Reduce(\(x, f) f(x), fns)
+) 
+```
+
+Density of predictions stratified by observed outcome
+
+``` r
+state$results$testPredictionsDensityPlot
+```
+
+![](README_files/figure-commonmark/unnamed-chunk-2-1.png)
+
+C-statistic of predictions made on the test set
+
+``` r
+state$results$testPredictionsAuc
+```
+
+    Area under the curve: 0.8405
+
+Observed outcome rate stratified by prediction decile
+
+``` r
+state$results$calibrationPlot
+```
+
+![](README_files/figure-commonmark/unnamed-chunk-4-1.png)
